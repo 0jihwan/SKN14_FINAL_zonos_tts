@@ -223,8 +223,6 @@ $RECYCLE.BIN/
 *.m4a
 *.mp3
 
-# zonos는 허깅페이스에서 불러오기
-zonos/
 
 
 # End of https://www.toptal.com/developers/gitignore/api/python,windows,visualstudiocode

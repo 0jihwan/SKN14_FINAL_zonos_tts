@@ -1,0 +1,11 @@
+sudachipy
+sudachidict_core
+inflect
+phonemizer
+pydub
+sudachidict_full
+kanjize
+trl>=0.23.0
+safetensors
+huggingface_hub
+transformers

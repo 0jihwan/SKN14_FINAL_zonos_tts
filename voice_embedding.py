@@ -21,10 +21,11 @@ from pydub import AudioSegment
 
 # m4a 형변환. 필요하면 사용、 필요없으면 주석처리
 audio = AudioSegment.from_file("sample_file/joowoojae.m4a", format="m4a")
+audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
 audio.export("sample_file/joowoojae.wav", format="wav")
 
 # 원본 파일 업로드
-wav, sr = torchaudio.load("sample_file/joowoojae.wav")
+wav, sr = torchaudio.load("sample_file/joowoojae.wav", backend="soundfile")
 speaker_emb = model.make_speaker_embedding(wav, sr)
 # 강제 형변환 <-날려도 되는지 체크
 speaker_emb = speaker_emb.mean(dim=0, keepdim=True).unsqueeze(0)   # (1, 1, 256)

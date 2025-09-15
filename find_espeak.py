@@ -2,6 +2,8 @@
 
 import os
 import ctypes
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 
 dll_dir = r"C:\Program Files\eSpeak NG"
 os.environ["PHONEMIZER_ESPEAK_PATH"] = os.path.join(dll_dir, "espeak-ng.exe")

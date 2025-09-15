@@ -9,3 +9,6 @@ trl>=0.23.0
 safetensors
 huggingface_hub
 transformers
+runpod
+torchaudio
+soundfile

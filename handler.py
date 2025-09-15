@@ -2,12 +2,14 @@ import os, time, datetime, boto3, torch, torchaudio
 from runpod import serverless
 from zonos.utils import DEFAULT_DEVICE
 from zonos.conditioning import make_cond_dict
-from voice_embedding import model   # 형이 쓰던 embedding 모델
+# from voice_embedding import model
 
 # AWS 환경 변수
 S3_BUCKET = os.getenv("AWS_S3_BUCKET")
 REGION = os.getenv("AWS_REGION", "ap-northeast-2")
 PREFIX = os.getenv("S3_FOLDER_PREFIX", "tts")
+
+model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
 
 s3 = boto3.client("s3", region_name=REGION)
 
@@ -75,3 +77,10 @@ def handler(job):
 
 
 serverless.start({"handler": handler})
+
+if __name__ == "__main__":
+    # 로컬 테스트용 코드만 여기서 실행 (RunPod에서는 실행 안 됨)
+    import torchaudio
+    wav, sr = torchaudio.load("sample_file/joowoojae.m4a")
+    emb = model.make_speaker_embedding(wav, sr)
+    print("embedding shape:", emb.shape)

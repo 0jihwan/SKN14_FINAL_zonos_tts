@@ -2,6 +2,7 @@ import os, time, datetime, boto3, torch, torchaudio
 from runpod import serverless
 from zonos.utils import DEFAULT_DEVICE
 from zonos.conditioning import make_cond_dict
+from zonos.model import Zonos
 # from voice_embedding import model
 
 # AWS 환경 변수

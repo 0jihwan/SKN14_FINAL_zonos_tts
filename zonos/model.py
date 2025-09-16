@@ -78,7 +78,6 @@ class Zonos(nn.Module):
 
         model = cls(config, backbone_cls).to(device, torch.bfloat16)
         model.autoencoder.dac.to(device)
-''
         sd = model.state_dict()
         with safetensors.safe_open(model_path, framework="pt") as f:
             for k in f.keys():

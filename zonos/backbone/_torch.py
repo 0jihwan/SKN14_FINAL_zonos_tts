@@ -139,6 +139,10 @@ class Attention(nn.Module):
 
         # (B, seqlen, n_heads, d) → (B, n_heads, seqlen, d)
         q, k, v = map(lambda t: t.transpose(1, 2), (q, k, v))
+        if k.size(1) != q.size(1):
+            repeat_factor = q.size(1) // k.size(1)
+            k = k.repeat_interleave(repeat_factor, dim=1)
+            v = v.repeat_interleave(repeat_factor, dim=1)
 
         y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
 

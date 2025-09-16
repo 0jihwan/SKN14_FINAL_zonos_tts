@@ -133,7 +133,7 @@ class Attention(nn.Module):
 
         q, k, v = map(lambda x: x.transpose(1, 2), (q, k, v))
 
-        y = F.scaled_dot_product_attention(q, k, v, is_causal=seqlen > 1, enable_gqa=True)
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=seqlen > 1)
 
         y = y.transpose(1, 2).contiguous().view(batch_size, seqlen, q_size)
 

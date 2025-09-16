@@ -129,16 +129,23 @@ class Attention(nn.Module):
         k = apply_rotary_emb(k, freqs_cis)
 
         kv = _update_kv_cache(k, v, inference_params, self.layer_idx)
-        k, v = kv.unbind(dim=-3)
+        k, v = kv.unbind(dim=-3)   # (B, seqlen, n_kv, head_dim)
 
-        q, k, v = map(lambda x: x.transpose(1, 2), (q, k, v))
+        # ---- 여기서 복제 ----
+        if self.num_heads != self.num_heads_kv:
+            repeat_factor = self.num_heads // self.num_heads_kv
+            k = k.repeat_interleave(repeat_factor, dim=2)
+            v = v.repeat_interleave(repeat_factor, dim=2)
 
-        y = F.scaled_dot_product_attention(q, k, v, is_causal=seqlen > 1)
+        # (B, seqlen, n_heads, d) → (B, n_heads, seqlen, d)
+        q, k, v = map(lambda t: t.transpose(1, 2), (q, k, v))
+
+        y = F.scaled_dot_product_attention(q, k, v, is_causal=True)
 
         y = y.transpose(1, 2).contiguous().view(batch_size, seqlen, q_size)
-
         y = self.out_proj(y)
         return y
+
 
 
 class FeedForward(nn.Module):

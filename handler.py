@@ -50,6 +50,7 @@ def handler(job):
         wav = wavs.squeeze(0)
     elif wavs.ndim == 2:
         wav = wavs
+        
     else:
         raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
 

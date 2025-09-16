@@ -40,12 +40,7 @@ def handler(job):
         cond["espeak"] = ([t[0]], [l[0]])
 
     # prefix 준비
-    if torch.cuda.is_available():
-        with torch.cuda.amp.autocast(dtype=torch.float16):
-            prefix = model.prepare_conditioning(cond)
-    else:
-        prefix = model.prepare_conditioning(cond)
-    prefix = prefix.to(torch.float32)
+    prefix = model.prepare_conditioning(cond).to(torch.float32)
 
     # 코드 생성 & 오디오 복원
     codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False)

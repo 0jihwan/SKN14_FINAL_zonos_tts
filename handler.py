@@ -5,6 +5,10 @@ from zonos.conditioning import make_cond_dict
 from zonos.model import Zonos
 # from voice_embedding import model
 
+# espeak 변수
+os.environ["PHONEMIZER_ESPEAK_PATH"] = "/usr/bin/espeak-ng"
+
+
 # AWS 환경 변수
 S3_BUCKET = os.getenv("AWS_S3_BUCKET")
 REGION = os.getenv("AWS_REGION", "ap-northeast-2")

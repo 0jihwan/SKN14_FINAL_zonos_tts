@@ -1,5 +1,4 @@
 sudachipy
-sudachidict_core
 inflect
 phonemizer
 pydub
@@ -10,5 +9,11 @@ safetensors
 huggingface_hub
 transformers
 runpod
-torchaudio
 soundfile
+
+torch==2.3.1+cu121
+torchaudio==2.3.1+cu121
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+numpy>=1.26
+accelerate

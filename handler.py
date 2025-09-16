@@ -80,9 +80,9 @@ def handler(job):
 
 serverless.start({"handler": handler})
 
-if __name__ == "__main__":
-    # 로컬 테스트용 코드만 여기서 실행 (RunPod에서는 실행 안 됨)
-    import torchaudio
-    wav, sr = torchaudio.load("sample_file/joowoojae.m4a")
-    emb = model.make_speaker_embedding(wav, sr)
-    print("embedding shape:", emb.shape)
+# if __name__ == "__main__":
+#     # 로컬 테스트용 코드만 여기서 실행 (RunPod에서는 실행 안 됨)
+#     import torchaudio
+#     wav, sr = torchaudio.load("sample_file/joowoojae.m4a")
+#     emb = model.make_speaker_embedding(wav, sr)
+#     print("embedding shape:", emb.shape)

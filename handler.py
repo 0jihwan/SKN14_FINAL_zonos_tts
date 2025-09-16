@@ -40,7 +40,7 @@ def handler(job):
         cond["espeak"] = ([t[0]], [l[0]])
 
     # prefix 준비
-    prefix = model.prepare_conditioning(cond).to(torch.float32)
+    prefix = model.prepare_conditioning(cond).to(torch.bfloat16).to(DEFAULT_DEVICE)
 
     # 코드 생성 & 오디오 복원
     codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False)
@@ -50,7 +50,7 @@ def handler(job):
         wav = wavs.squeeze(0)
     elif wavs.ndim == 2:
         wav = wavs
-        
+
     else:
         raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
 

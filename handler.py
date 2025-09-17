@@ -28,12 +28,9 @@ s3 = boto3.client("s3", region_name=REGION)
 
 # 기본 persona
 DEFAULT_SPEAKER = "HongJinkyeong"
-DEFAULT_PATH = f"persona_list/{DEFAULT_SPEAKER}"
+DEFAULT_PATH = f"persona_list/{DEFAULT_SPEAKER}.pt"
 default_emb = torch.load(DEFAULT_PATH).to(DEFAULT_DEVICE)
 
-
-def estimate_tokens(text: str) -> int:
-    return max(100, len(text) * 20)
 
 def handler(job):
     start_time = time.time()
@@ -55,9 +52,8 @@ def handler(job):
     with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
         prefix = model.prepare_conditioning(cond)
 
-    max_tokens = estimate_tokens(text)
     # 코드 생성 & 오디오 복원
-    codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
+    codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False)
     wavs = model.autoencoder.decode(codes)
 
     # wav 정리
@@ -75,7 +71,7 @@ def handler(job):
     torchaudio.save(local_path, wav.cpu(), 44100, format="wav")
 
     # S3 업로드
-    s3.upload_file(local_path, S3_BUCKET, f"{PREFIX}/{filename}", ExtraArgs={"ContentType": "audio/wav"})
+    s3.upload_file(local_path, S3_BUCKET, f"{PREFIX}/{filename}")
     url = s3.generate_presigned_url(
         ClientMethod="get_object",
         Params={"Bucket": S3_BUCKET, "Key": f"{PREFIX}/{filename}"},

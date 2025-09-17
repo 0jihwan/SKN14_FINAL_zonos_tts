@@ -9,12 +9,8 @@
 - espeak-ng 설치 필요 (https://github.com/espeak-ng/espeak-ng/releases)
 - espeak을 읽기 위해 환경변수 지정 필요
 
-- 필요한 모듈
-- sudachipy sudachidict_core inflect
-- phonemizer pydub
-- sudachidict_full
-- kanjize
-- trl>=0.23.0
+- 필요한 모듈(runpod 가상환경 포함)
+- requirements.txt 참조
 
 
 

@@ -34,12 +34,21 @@ def handler(job):
     try:
         start_time = time.time()
 
+        # persona embedding 로딩 로직을 handler 함수 내에서 관리
+        
         text = job["input"].get("text", "안녕하세요")
         persona = job["input"].get("persona", DEFAULT_SPEAKER)
 
-        # persona embedding 불러오기
-        speaker_path = f"persona_list/{persona}.pt"
-        emb = torch.load(speaker_path).to(DEFAULT_DEVICE) if os.path.exists(speaker_path) else default_emb
+        persona_path = f"persona_list/{persona}.pt"
+        if os.path.exists(persona_path):
+            emb = torch.load(persona_path).to(DEFAULT_DEVICE)
+        else:
+            # default_emb도 handler 내에서 로드
+            default_path = f"persona_list/{DEFAULT_SPEAKER}.pt"
+            default_emb = torch.load(default_path).to(DEFAULT_DEVICE)
+            emb = default_emb
+
+
 
         final_wavs = []
 

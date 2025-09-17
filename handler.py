@@ -1,9 +1,9 @@
 import os, time, datetime, boto3, torch, torchaudio
+import librosa
 from runpod import serverless
 from zonos.utils import DEFAULT_DEVICE
 from zonos.conditioning import make_cond_dict
 from zonos.model import Zonos
-# from voice_embedding import model
 
 # espeak 변수
 os.environ["PHONEMIZER_ESPEAK_PATH"] = "/usr/bin/espeak-ng"
@@ -52,8 +52,11 @@ def handler(job):
     with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
         prefix = model.prepare_conditioning(cond)
 
+    # --- 문장 길이에 따른 max_new_tokens 계산 ---
+    max_tokens = max(64, len(text) * 28)
+
     # 코드 생성 & 오디오 복원
-    codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False)
+    codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
     wavs = model.autoencoder.decode(codes)
 
     # wav 정리
@@ -64,11 +67,16 @@ def handler(job):
     else:
         raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
 
-    # 파일 mp3로 저장 (웹 구동엔 mp3가 더 좋음)
+    # --- 무음 제거 ---
+    wav_np = wav.cpu().numpy()
+    wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=30)
+    wav_tensor = torch.tensor(wav_trimmed).unsqueeze(0)  # [1, T]
+
+    # 파일 wav로 저장
     now = datetime.datetime.now()
     filename = f"tts_{persona}_{now.strftime('%m%d_%H%M%S')}.wav"
     local_path = f"/tmp/{filename}"
-    torchaudio.save(local_path, wav.cpu(), 44100, format="wav")
+    torchaudio.save(local_path, wav_tensor.cpu(), 44100, format="wav")
 
     # S3 업로드
     s3.upload_file(local_path, S3_BUCKET, f"{PREFIX}/{filename}")

@@ -6,6 +6,7 @@ import datetime
 import time
 import os
 from zonos.conditioning import make_cond_dict
+import librosa
 
 dll_dir = r"C:\Program Files\eSpeak NG"
 os.environ["PHONEMIZER_ESPEAK_PATH"] = os.path.join(dll_dir, "espeak-ng.exe")
@@ -40,7 +41,8 @@ t1 = time.time()
 speaker_emb = torch.load(f"persona_list/{DEFAULT_SPEAKER}.pt").to(DEFAULT_DEVICE)
 t1 = log_time("임베딩 불러오기", t1)
 
-text = "안녕하시렵니까? 오늘의 주우재의 주우재입니다. 오늘도 주우재의 살끼요 말까요?"
+# 이걸 한 문장으로 생각을 하네 이새끼
+text = "안녕하시렵니까?오늘의 주우재의 주우재입니다. 오늘도 주우재의 살끼요 말까요?"
 #  진행해보도록 하겠습니다. 오 알파인더스트리의 마원이네요. 확실히 패션이 돌고 돈다고 생각되는게 한 3,4년 전에 마원이 유행했었잖아요.
 cond = make_cond_dict(text=text, speaker=speaker_emb, language="ko")
 if isinstance(cond["espeak"], tuple):  # espeak 강제 batch=1
@@ -56,7 +58,7 @@ with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
     prefix = model.prepare_conditioning(cond)
     t1 = log_time("prefix 준비", start_time)
 
-    max_new_tokens = max(64, len(text) * 4)
+    max_tokens = max(64, len(text) * 28)
     codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
     t1 = log_time("코드 생성", t1)
 

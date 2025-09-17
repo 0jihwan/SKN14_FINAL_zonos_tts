@@ -84,7 +84,15 @@ def handler(job):
     # --- 무음 제거 ---
     wav_np = wav_full.cpu().numpy()
     wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=30)
-    wav_tensor = torch.tensor(wav_trimmed).unsqueeze(0)  # [1, T]
+    wav_tensor = torch.tensor(wav_trimmed)
+
+    # torchaudio.save 용 shape 보정
+    if wav_tensor.ndim == 1:
+        wav_tensor = wav_tensor.unsqueeze(0)        # [1, T] (mono)
+    elif wav_tensor.ndim == 2:
+        pass                                        # [C, T] (stereo 등)
+    else:
+        raise ValueError(f"Unexpected wav shape after trim: {wav_tensor.shape}")
 
     # 파일 wav로 저장
     now = datetime.datetime.now()

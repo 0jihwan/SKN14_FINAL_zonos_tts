@@ -26,11 +26,12 @@ def split_sentences(text: str):
 
 # --- 모델 로드 ---
 print(">>> Loading Zonos Transformer model from local...")
-model = Zonos.from_local(
-    config_path="/app/Zonos-v0.1-transformer/config.json",
-    model_path="/app/Zonos-v0.1-transformer/model.safetensors",
-    device=DEFAULT_DEVICE
-)
+model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
+# model = Zonos.from_local(     # 나중에 완전 동작 끝났을때, 도커이미지에 모델 추가
+#     config_path="/app/Zonos-v0.1-transformer/config.json",
+#     model_path="/app/Zonos-v0.1-transformer/model.safetensors",
+#     device=DEFAULT_DEVICE
+# )
 print(">>> Model loaded on", model.device)
 
 # --- 임베딩 불러오기 ---

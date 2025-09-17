@@ -27,8 +27,8 @@ def split_sentences(text: str):
 # --- 모델 로드 ---
 print(">>> Loading Zonos Transformer model from local...")
 model = Zonos.from_local(
-    config_path="Zonos-v0.1-transformer/config.json",
-    model_path="Zonos-v0.1-transformer/model.safetensors",
+    config_path="/app/Zonos-v0.1-transformer/config.json",
+    model_path="/app/Zonos-v0.1-transformer/model.safetensors",
     device=DEFAULT_DEVICE
 )
 print(">>> Model loaded on", model.device)

@@ -8,17 +8,25 @@ from zonos.model import Zonos
 # espeak 변수
 os.environ["PHONEMIZER_ESPEAK_PATH"] = "/usr/bin/espeak-ng"
 
-
 # AWS 환경 변수
 S3_BUCKET = os.getenv("AWS_S3_BUCKET")
 REGION = os.getenv("AWS_REGION", "ap-northeast-2")
 PREFIX = os.getenv("S3_FOLDER_PREFIX", "tts")
 
-model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
+# --- 모델 로딩 ---
+# HuggingFace에서 로드
+# model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
+
+# 로컬(도커이미지)에 저장된 모델 불러오기
+model = Zonos.from_local(
+    config_path="Zonos-v0.1-transformer/config.json",
+    model_path="Zonos-v0.1-transformer/model.safetensors",
+    device=DEFAULT_DEVICE
+)
 
 s3 = boto3.client("s3", region_name=REGION)
 
-# 기본 persona (fallback)
+# 기본 persona
 DEFAULT_SPEAKER = "HongJinkyeong"
 DEFAULT_PATH = f"persona_list/{DEFAULT_SPEAKER}.pt"
 default_emb = torch.load(DEFAULT_PATH).to(DEFAULT_DEVICE)
@@ -26,6 +34,7 @@ default_emb = torch.load(DEFAULT_PATH).to(DEFAULT_DEVICE)
 
 def handler(job):
     start_time = time.time()
+
     text = job["input"].get("text", "안녕하세요")
     persona = job["input"].get("persona", DEFAULT_SPEAKER)
 
@@ -40,21 +49,22 @@ def handler(job):
         cond["espeak"] = ([t[0]], [l[0]])
 
     # prefix 준비
-    prefix = model.prepare_conditioning(cond).to(torch.bfloat16).to(DEFAULT_DEVICE)
+    with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
+        prefix = model.prepare_conditioning(cond)
 
     # 코드 생성 & 오디오 복원
     codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False)
     wavs = model.autoencoder.decode(codes)
 
+    # wav 정리
     if wavs.ndim == 3 and wavs.shape[0] == 1:
         wav = wavs.squeeze(0)
     elif wavs.ndim == 2:
         wav = wavs
-
     else:
         raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
 
-    # 파일 mp3로 저장 (why? 웹 구동엔 mp3가 더 좋음)
+    # 파일 mp3로 저장 (웹 구동엔 mp3가 더 좋음)
     now = datetime.datetime.now()
     filename = f"tts_{persona}_{now.strftime('%m%d_%H%M%S')}.mp3"
     local_path = f"/tmp/{filename}"
@@ -65,7 +75,7 @@ def handler(job):
     url = s3.generate_presigned_url(
         ClientMethod="get_object",
         Params={"Bucket": S3_BUCKET, "Key": f"{PREFIX}/{filename}"},
-        ExpiresIn=3600  # url 유효기간. 늘려도 됨.
+        ExpiresIn=3600  # url 유효기간
     )
 
     end_time = time.time()
@@ -76,6 +86,8 @@ def handler(job):
         "s3_url": url,
         "execution_time": round(end_time - start_time, 2)
     }
+    # 왜 이걸 안쏘지?
+    # 
 
 
 serverless.start({"handler": handler})

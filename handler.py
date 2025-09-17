@@ -13,40 +13,9 @@ S3_BUCKET = os.getenv("AWS_S3_BUCKET")
 REGION = os.getenv("AWS_REGION", "ap-northeast-2")
 PREFIX = os.getenv("S3_FOLDER_PREFIX", "tts")
 
-# --- 모델 로딩 경로 해소 유틸 ---
-def _resolve_model_paths():
-    candidates = [
-        ("Zonos-v0.1-transformer/config.json", "Zonos-v0.1-transformer/model.safetensors"),
-        ("/app/Zonos-v0.1-transformer/config.json", "/app/Zonos-v0.1-transformer/model.safetensors"),
-        ("/Zonos-v0.1-transformer/config.json", "/Zonos-v0.1-transformer/model.safetensors"),
-    ]
-    for cfg, mdl in candidates:
-        if os.path.exists(cfg) and os.path.exists(mdl):
-            return cfg, mdl
-    raise FileNotFoundError(
-        "Zonos-v0.1-transformer 모델 파일을 찾을 수 없습니다. "
-        "컨테이너 내에 다음 경로 중 하나에 있어야 합니다: "
-        "./Zonos-v0.1-transformer, /app/Zonos-v0.1-transformer, /Zonos-v0.1-transformer"
-    )
-
+# --- 모델 로딩 (HuggingFace에서만 불러오기) ---
 print(">>> CWD:", os.getcwd())
-try:
-    print(">>> /app 목록:", os.listdir("/app"))
-except Exception:
-    pass
-
-cfg_path, mdl_path = _resolve_model_paths()
-
-# --- 모델 로딩 ---
-# HuggingFace에서 로드
 model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
-
-# 로컬(도커이미지)에 저장된 모델 불러오기
-# model = Zonos.from_local(
-#     config_path=cfg_path,
-#     model_path=mdl_path,
-#     device=DEFAULT_DEVICE
-# )
 
 s3 = boto3.client("s3", region_name=REGION)
 
@@ -140,20 +109,14 @@ def handler(job):
             "text": text,
             "s3_url": url,
             "execution_time": round(end_time - start_time, 2),
-            "cwd": os.getcwd(),
-            "model_paths": {"config": cfg_path, "weights": mdl_path}
+            "cwd": os.getcwd()
         }
     except Exception as e:
         import traceback
         return {
             "error": str(e),
             "traceback": traceback.format_exc(),
-            "cwd": os.getcwd(),
-            "exists": {
-                "./cfg": os.path.exists("Zonos-v0.1-transformer/config.json"),
-                "/app/cfg": os.path.exists("/app/Zonos-v0.1-transformer/config.json"),
-                "/cfg": os.path.exists("/Zonos-v0.1-transformer/config.json"),
-            }
+            "cwd": os.getcwd()
         }
 
 

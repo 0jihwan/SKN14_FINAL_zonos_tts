@@ -39,14 +39,14 @@ cfg_path, mdl_path = _resolve_model_paths()
 
 # --- 모델 로딩 ---
 # HuggingFace에서 로드
-# model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
+model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
 
 # 로컬(도커이미지)에 저장된 모델 불러오기
-model = Zonos.from_local(
-    config_path=cfg_path,
-    model_path=mdl_path,
-    device=DEFAULT_DEVICE
-)
+# model = Zonos.from_local(
+#     config_path=cfg_path,
+#     model_path=mdl_path,
+#     device=DEFAULT_DEVICE
+# )
 
 s3 = boto3.client("s3", region_name=REGION)
 

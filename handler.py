@@ -1,5 +1,5 @@
 import os, time, datetime, boto3, torch, torchaudio
-import librosa
+import librosa, re
 from runpod import serverless
 from zonos.utils import DEFAULT_DEVICE
 from zonos.conditioning import make_cond_dict
@@ -31,6 +31,11 @@ DEFAULT_SPEAKER = "HongJinkyeong"
 DEFAULT_PATH = f"persona_list/{DEFAULT_SPEAKER}.pt"
 default_emb = torch.load(DEFAULT_PATH).to(DEFAULT_DEVICE)
 
+# --- 문장 단위 split 함수 ---
+def split_sentences(text: str):
+    sentences = re.split(r'(?<=[.?!?,])', text)
+    return [s.strip() for s in sentences if s.strip()]
+
 
 def handler(job):
     start_time = time.time()
@@ -42,33 +47,42 @@ def handler(job):
     speaker_path = f"persona_list/{persona}.pt"
     emb = torch.load(speaker_path).to(DEFAULT_DEVICE) if os.path.exists(speaker_path) else default_emb
 
-    # conditioning
-    cond = make_cond_dict(text=text, speaker=emb, language="ko")
-    if isinstance(cond["espeak"], tuple):  # espeak 강제 batch=1
-        t, l = cond["espeak"]
-        cond["espeak"] = ([t[0]], [l[0]])
+    final_wavs = []
 
-    # prefix 준비
-    with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
-        prefix = model.prepare_conditioning(cond)
+    # 문장 단위로 나눠서 처리
+    for sent in split_sentences(text):
+        # conditioning
+        cond = make_cond_dict(text=sent, speaker=emb, language="ko")
+        if isinstance(cond["espeak"], tuple):  # espeak 강제 batch=1
+            t, l = cond["espeak"]
+            cond["espeak"] = ([t[0]], [l[0]])
 
-    # --- 문장 길이에 따른 max_new_tokens 계산 ---
-    max_tokens = max(64, len(text) * 28)
+        # prefix 준비
+        with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
+            prefix = model.prepare_conditioning(cond)
 
-    # 코드 생성 & 오디오 복원
-    codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
-    wavs = model.autoencoder.decode(codes)
+            # --- 문장 길이에 따른 max_new_tokens 계산 ---
+            max_tokens = max(64, len(sent) * 24)
 
-    # wav 정리
-    if wavs.ndim == 3 and wavs.shape[0] == 1:
-        wav = wavs.squeeze(0)
-    elif wavs.ndim == 2:
-        wav = wavs
-    else:
-        raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
+            # 코드 생성 & 오디오 복원
+            codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
+            wavs = model.autoencoder.decode(codes)
+
+        # wav 정리
+        if wavs.ndim == 3 and wavs.shape[0] == 1:
+            wav = wavs.squeeze(0)
+        elif wavs.ndim == 2:
+            wav = wavs
+        else:
+            raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
+
+        final_wavs.append(wav)
+
+    # --- 문장별 wav 이어붙이기 ---
+    wav_full = torch.cat(final_wavs, dim=-1)
 
     # --- 무음 제거 ---
-    wav_np = wav.cpu().numpy()
+    wav_np = wav_full.cpu().numpy()
     wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=30)
     wav_tensor = torch.tensor(wav_trimmed).unsqueeze(0)  # [1, T]
 
@@ -94,8 +108,6 @@ def handler(job):
         "s3_url": url,
         "execution_time": round(end_time - start_time, 2)
     }
-    # 왜 이걸 안쏘지?
-    # 
 
 
 serverless.start({"handler": handler})

@@ -66,9 +66,9 @@ def handler(job):
 
     # 파일 mp3로 저장 (웹 구동엔 mp3가 더 좋음)
     now = datetime.datetime.now()
-    filename = f"tts_{persona}_{now.strftime('%m%d_%H%M%S')}.mp3"
+    filename = f"tts_{persona}_{now.strftime('%m%d_%H%M%S')}.wav"
     local_path = f"/tmp/{filename}"
-    torchaudio.save(local_path, wav.cpu(), 44100, format="mp3")
+    torchaudio.save(local_path, wav.cpu(), 44100, format="wav")
 
     # S3 업로드
     s3.upload_file(local_path, S3_BUCKET, f"{PREFIX}/{filename}")

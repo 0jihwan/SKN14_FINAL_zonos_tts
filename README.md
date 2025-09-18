@@ -41,8 +41,17 @@ git clone https://github.com/Zyphra/Zonos.git
 ```
 
 
+<<<<<<< HEAD
 ---
 ### 최적화에 적용된 방법
 1. dockerignore에 docker 배포 시 사용되지 않는 로컬 전용 파일 추가
 2. huggingface에서 불러오는 모델을 docker에서 직접 로드(처음 배포시 상당한 시간 소요, 하지만 작업 속도는 상승)
 3. 토큰 수 조절
+=======
+
+
+
+---
+초기 모델 tts 생성 시 약 40초 소요(3문장)
+최적화에 사용한 방법
+>>>>>>> main

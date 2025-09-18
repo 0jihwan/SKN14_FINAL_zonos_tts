@@ -59,3 +59,10 @@ results/
 # 기타 불필요 파일
 *.ipynb_checkpoints
 *.cache/
+
+# docker image에서는 필요없는 파이썬 파일
+test.py
+voice_embedding.py
+voice_sep.py
+find_espeak.py
+cloned_model_load.py

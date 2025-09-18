@@ -59,6 +59,7 @@ results/
 # 기타 불필요 파일
 *.ipynb_checkpoints
 *.cache/
+Zonos-v0.1-transformer/.git/
 
 # docker image에서는 필요없는 파이썬 파일
 test.py

@@ -45,7 +45,7 @@ def handler(job):
 
         
         text = job["input"].get("text", "안녕하세요")
-        persona = job["input"].get("persona", DEFAULT_SPEAKER)
+        persona_input = job["input"].get("persona", DEFAULT_SPEAKER)
 
         # persona_input이 숫자인 경우 이름으로 변환
         # 숫자가 아니거나 매핑에 없는 경우 기본값으로 설정
@@ -55,7 +55,7 @@ def handler(job):
             persona_name = DEFAULT_SPEAKER
 
         # persona embedding 불러오기
-        speaker_path = f"persona_list/{persona}.pt"
+        speaker_path = f"persona_list/{persona_name}.pt"
         emb = torch.load(speaker_path).to(DEFAULT_DEVICE) if os.path.exists(speaker_path) else default_emb
 
 
@@ -109,7 +109,7 @@ def handler(job):
 
         # 파일 wav로 저장
         now = datetime.datetime.now()
-        filename = f"tts_{persona}_{now.strftime('%m%d_%H%M%S')}.wav"
+        filename = f"tts_{persona_name}_{now.strftime('%m%d_%H%M%S')}.wav"
         local_path = f"/tmp/{filename}"
         torchaudio.save(local_path, wav_tensor.cpu(), 44100, format="wav")
 
@@ -124,7 +124,7 @@ def handler(job):
         end_time = time.time()
 
         return {
-            "persona": persona,
+            "persona": persona_name,
             "text": text,
             "s3_url": url,
             "execution_time": round(end_time - start_time, 2),

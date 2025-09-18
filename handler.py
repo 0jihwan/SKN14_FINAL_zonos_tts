@@ -45,7 +45,7 @@ def handler(job):
 
         
         text = job["input"].get("text", "안녕하세요")
-        persona = job["input"].get("persona", DEFAULT_SPEAKER)
+        persona_input = job["input"].get("persona", DEFAULT_SPEAKER)
 
         # persona_input이 숫자인 경우 이름으로 변환
         # 숫자가 아니거나 매핑에 없는 경우 기본값으로 설정
@@ -96,7 +96,7 @@ def handler(job):
 
         # --- 무음 제거 ---
         wav_np = wav_full.cpu().numpy()
-        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=30)
+        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=20)    # 데시벨 수치, 20에서 더 올리지 말 것
         wav_tensor = torch.tensor(wav_trimmed)
 
         # torchaudio.save 용 shape 보정

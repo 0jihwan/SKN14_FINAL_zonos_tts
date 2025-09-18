@@ -39,3 +39,11 @@ git clone https://github.com/Zyphra/Zonos.git
     "files.insertFinalNewline": true,
     "files.trimTrailingWhitespace": true
 ```
+
+
+
+
+
+---
+초기 모델 tts 생성 시 약 40초 소요(3문장)
+최적화에 사용한 방법

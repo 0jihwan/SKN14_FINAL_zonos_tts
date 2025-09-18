@@ -12,8 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 로컬에서 Zonos 모델 파일 복사
-RUN mkdir -p /app/models/
-COPY ./Zonos-v0.1-transformer /app/models/Zonos-v0.1-transformer
+RUN git clone https://huggingface.co/Zyphra/Zonos-v0.1-transformer /app/models/Zonos-v0.1-transformer
 
 COPY . .
 

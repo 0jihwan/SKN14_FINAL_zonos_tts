@@ -13,9 +13,16 @@ S3_BUCKET = os.getenv("AWS_S3_BUCKET")
 REGION = os.getenv("AWS_REGION", "ap-northeast-2")
 PREFIX = os.getenv("S3_FOLDER_PREFIX", "tts")
 
-# --- 모델 로딩 (HuggingFace에서만 불러오기) ---
+
 print(">>> CWD:", os.getcwd())
-model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
+
+# --- 모델 로딩 (HuggingFace에서만 불러오기) ---
+# model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
+
+# --- 모델 로딩 (로컬 파일 시스템에서 불러오기) ---
+model_path = "/app/models/Zonos-v0.1-transformer"
+model = Zonos.from_pretrained(model_path, device=DEFAULT_DEVICE)
+
 
 s3 = boto3.client("s3", region_name=REGION)
 

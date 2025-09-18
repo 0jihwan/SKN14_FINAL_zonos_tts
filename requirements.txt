@@ -1,15 +1,6 @@
-sudachipy
-inflect
-phonemizer
-pydub
-sudachidict_full
-kanjize
 trl>=0.23.0
-safetensors
-huggingface_hub
-transformers
 runpod
-soundfile
+
 
 torch==2.5.1
 torchaudio==2.5.1
@@ -18,3 +9,14 @@ librosa
 
 numpy==1.26.4
 accelerate
+
+safetensors
+huggingface_hub
+transformers
+inflect
+kanjize
+phonemizer
+sudachipy
+sudachidict_full
+pydub
+soundfile   

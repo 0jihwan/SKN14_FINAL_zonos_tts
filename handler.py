@@ -19,8 +19,17 @@ model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DE
 
 s3 = boto3.client("s3", region_name=REGION)
 
+# 화자 딕셔너리 매핑
+SPEAKER_MAP = {
+    "1": "HongJinkyeong",
+    "2": "joowoojae",
+    "3": "kimhoyeong",
+    "4": "hanhyaejin"
+}
+
 # 기본 persona
-DEFAULT_SPEAKER = "HongJinkyeong"
+DEFAULT_SPEAKER_ID = "1"
+DEFAULT_SPEAKER = SPEAKER_MAP[DEFAULT_SPEAKER_ID]
 DEFAULT_PATH = f"persona_list/{DEFAULT_SPEAKER}.pt"
 default_emb = torch.load(DEFAULT_PATH).to(DEFAULT_DEVICE)
 
@@ -34,19 +43,20 @@ def handler(job):
     try:
         start_time = time.time()
 
-        # persona embedding 로딩 로직을 handler 함수 내에서 관리
         
         text = job["input"].get("text", "안녕하세요")
         persona = job["input"].get("persona", DEFAULT_SPEAKER)
 
-        persona_path = f"persona_list/{persona}.pt"
-        if os.path.exists(persona_path):
-            emb = torch.load(persona_path).to(DEFAULT_DEVICE)
+        # persona_input이 숫자인 경우 이름으로 변환
+        # 숫자가 아니거나 매핑에 없는 경우 기본값으로 설정
+        if str(persona_input) in SPEAKER_MAP:
+            persona_name = SPEAKER_MAP[str(persona_input)]
         else:
-            # default_emb도 handler 내에서 로드
-            default_path = f"persona_list/{DEFAULT_SPEAKER}.pt"
-            default_emb = torch.load(default_path).to(DEFAULT_DEVICE)
-            emb = default_emb
+            persona_name = DEFAULT_SPEAKER
+
+        # persona embedding 불러오기
+        speaker_path = f"persona_list/{persona}.pt"
+        emb = torch.load(speaker_path).to(DEFAULT_DEVICE) if os.path.exists(speaker_path) else default_emb
 
 
 

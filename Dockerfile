@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-RUN apt-get update && apt-get install -y ffmpeg git git-lfs espeak-ng && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ffmpeg git git-lfs espeak-ng && rm -rf /var/lib/apt/lists/* 
 
 # 나중에 모델 돌아가는거 확인 했을때, 이 주석 해제
 # RUN git lfs install

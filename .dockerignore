@@ -66,3 +66,4 @@ voice_embedding.py
 voice_sep.py
 find_espeak.py
 cloned_model_load.py
+input_test.py

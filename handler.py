@@ -65,26 +65,30 @@ def handler(job):
         speaker_path = f"persona_list/{persona_name}.pt"
         emb = torch.load(speaker_path).to(DEFAULT_DEVICE) if os.path.exists(speaker_path) else default_emb
 
+        import random
 
+        # final_wavs = []
 
-        final_wavs = []
+        sentences = split_sentences(text)
 
+        total = len(sentences)
+        session_id = 'aabb4'
+        results = []
         # 문장 단위로 나눠서 처리
-        for sent in split_sentences(text):
-            # conditioning
+        # 문장 단위 처리 시 속도 저하, 한 문장 처리시 품질이 괜찮은지 확인.
+        for idx, sent in enumerate(sentences, start=1):
             cond = make_cond_dict(text=sent, speaker=emb, language="ko")
-            if isinstance(cond["espeak"], tuple):  # espeak 강제 batch=1
+            if isinstance(cond["espeak"], tuple):
                 t, l = cond["espeak"]
                 cond["espeak"] = ([t[0]], [l[0]])
 
             # prefix 준비
+            # 개선하기 위한 조정 필요 (bfloat16 -> float16)
             with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
                 prefix = model.prepare_conditioning(cond)
 
-                # --- 문장 길이에 따른 max_new_tokens 계산 ---
+                # 필요 시 조절
                 max_tokens = max(64, len(sent) * 24)
-
-                # 코드 생성 & 오디오 복원
                 codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
                 wavs = model.autoencoder.decode(codes)
 
@@ -95,46 +99,98 @@ def handler(job):
                 wav = wavs
             else:
                 raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
+            
+            # --- 무음 제거 ---
+            wav_np = wav.cpu().numpy()
+            # librosa.effects.trim 대신 torchaudio.functional.vad 사용?
+            wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=10)    # 데시벨 수치, 20에서 더 올리지 말 것
+            wav_tensor = torch.tensor(wav_trimmed)
 
-            final_wavs.append(wav)
+            # torchaudio.save 용 shape 보정
+            if wav_tensor.ndim == 1:
+                wav_tensor = wav_tensor.unsqueeze(0)        # [1, T] (mono)
+            elif wav_tensor.ndim == 2:
+                pass                                        # [C, T] (stereo 등)
+            else:
+                raise ValueError(f"Unexpected wav shape after trim: {wav_tensor.shape}")
+
+            # S3 업로드
+            # key = random_hex(6)
+
+            filename = f"tts_{persona_name}_{session_id}_{total}-{idx}.wav"
+            local_path = f"/tmp/{filename}"
+            torchaudio.save(local_path, wav_tensor.cpu(), 44100, format="wav")
+
+            s3.upload_file(local_path, S3_BUCKET, f"{PREFIX}/{filename}")
+            url = s3.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={"Bucket": S3_BUCKET, "Key": f"{PREFIX}/{filename}"},
+                ExpiresIn=3600  # url 유효기간
+            )
+            results.append({"text": sent, "url": url, "filename": filename})
+            # final_wavs.append(wav)
 
         # --- 문장별 wav 이어붙이기 ---
-        wav_full = torch.cat(final_wavs, dim=-1)
+        # wav_full = torch.cat(final_wavs, dim=-1)
 
-        # --- 무음 제거 ---
-        wav_np = wav_full.cpu().numpy()
-        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=10)    # 데시벨 수치, 20에서 더 올리지 말 것
-        wav_tensor = torch.tensor(wav_trimmed)
 
-        # torchaudio.save 용 shape 보정
-        if wav_tensor.ndim == 1:
-            wav_tensor = wav_tensor.unsqueeze(0)        # [1, T] (mono)
-        elif wav_tensor.ndim == 2:
-            pass                                        # [C, T] (stereo 등)
-        else:
-            raise ValueError(f"Unexpected wav shape after trim: {wav_tensor.shape}")
+        # 한 문장 처리로 속도 개선 유도
+        # for sent in split_sentences(text):
+        #     # conditioning
+        #     cond = make_cond_dict(text=sent, speaker=emb, language="ko")
+        #     if isinstance(cond["espeak"], tuple):  # espeak 강제 batch=1
+        #         t, l = cond["espeak"]
+        #         cond["espeak"] = ([t[0]], [l[0]])
+
+        #     # prefix 준비
+        #     # bfloat16 → float16 (속도 ↑, 단 GPU 호환성 확인 필요)
+        #     # 일단 기존거 그대로 씀.
+        #     with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
+        #         prefix = model.prepare_conditioning(cond)
+
+        #         # 문장 길이에 따른 max_new_tokens 계산
+        #         # len(sent)*24 → 과도할 수 있으므로 상한선 추가
+        #         # max_tokens = min(512, max(64, len(sent) * 16))
+        #         max_tokens = max(64, len(sent) * 24)    # 일단 기존거 그대로 씀.
+
+        #         # 코드 생성 & 오디오 복원
+        #         codes = model.generate(
+        #             prefix,
+        #             disable_torch_compile=True,
+        #             progress_bar=False,
+        #             max_new_tokens=max_tokens
+        #         )
+        #         wavs = model.autoencoder.decode(codes)
+
+        #     # wav 정리
+        #     if wavs.ndim == 3 and wavs.shape[0] == 1:
+        #         wav = wavs.squeeze(0)
+        #     elif wavs.ndim == 2:
+        #         wav = wavs
+        #     else:
+        #         raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
+
+        #     final_wavs.append(wav)
+
+        # #  --- 문장별 wav 이어붙이기 ---
+        # wav_full = torch.cat(final_wavs, dim=-1)
+
+        
+
+
+
+
 
         # 파일 wav로 저장
         now = datetime.datetime.now()
-        filename = f"tts_{persona_name}_{now.strftime('%m%d_%H%M%S')}.wav"
-        local_path = f"/tmp/{filename}"
-        torchaudio.save(local_path, wav_tensor.cpu(), 44100, format="wav")
-
-        # S3 업로드
-        s3.upload_file(local_path, S3_BUCKET, f"{PREFIX}/{filename}")
-        url = s3.generate_presigned_url(
-            ClientMethod="get_object",
-            Params={"Bucket": S3_BUCKET, "Key": f"{PREFIX}/{filename}"},
-            ExpiresIn=3600  # url 유효기간
-        )
 
         end_time = time.time()
 
         return {
             "output":{
                 "persona": persona_name,
-                "text": text,
-                "s3_url": url,
+                "session_id": session_id,
+                "results": results,
                 "execution_time": round(end_time - start_time, 2),
                 "cwd": os.getcwd()
             }

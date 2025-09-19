@@ -8,7 +8,9 @@ import os
 import librosa
 import re
 from zonos.conditioning import make_cond_dict
+import uuid
 
+# --- espeak DLL 경로 (Windows 로컬) ---
 dll_dir = r"C:\Program Files\eSpeak NG"
 os.environ["PHONEMIZER_ESPEAK_PATH"] = os.path.join(dll_dir, "espeak-ng.exe")
 os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = os.path.join(dll_dir, "libespeak-ng.dll")
@@ -27,11 +29,6 @@ def split_sentences(text: str):
 # --- 모델 로드 ---
 print(">>> Loading Zonos Transformer model from local...")
 model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
-# model = Zonos.from_local(     # 나중에 완전 동작 끝났을때, 도커이미지에 모델 추가
-#     config_path="/app/Zonos-v0.1-transformer/config.json",
-#     model_path="/app/Zonos-v0.1-transformer/model.safetensors",
-#     device=DEFAULT_DEVICE
-# )
 print(">>> Model loaded on", model.device)
 
 # --- 임베딩 불러오기 ---
@@ -41,14 +38,18 @@ speaker_emb = torch.load(f"persona_list/{DEFAULT_SPEAKER}.pt").to(DEFAULT_DEVICE
 t1 = log_time("임베딩 불러오기", t1)
 
 # --- 테스트 텍스트 ---
-# text = "안녕하십니까? 오늘의 주우재의 주우재입니다. 오늘도 주우재의 살까요 말까요?"
-text = "안녕하세요 한혜진이에요. 제가 ESG 패션에 대해 알려드릴게요."
+text = "안녕하세요 한혜진이에요. 제가 ESG 패션에 대해 알려드릴게요. 오늘은 친환경 소재 이야기를 해보겠습니다."
+
+# --- 세션 ID & 준비 ---
+session_id = uuid.uuid4().hex[:6]   # 랜덤 6자리
+sentences = split_sentences(text)
+total = len(sentences)
 
 start_time = time.time()
-final_wavs = []
+results = []
 
 # --- 문장별 처리 ---
-for sent in split_sentences(text):
+for idx, sent in enumerate(sentences, start=1):
     cond = make_cond_dict(text=sent, speaker=speaker_emb, language="ko")
     if isinstance(cond["espeak"], tuple):  # espeak 강제 batch=1
         t, l = cond["espeak"]
@@ -59,7 +60,6 @@ for sent in split_sentences(text):
 
         # 문장 길이에 따라 max_new_tokens 조정
         max_tokens = max(64, len(sent) * 24)
-
         codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
         wavs = model.autoencoder.decode(codes)
 
@@ -71,34 +71,26 @@ for sent in split_sentences(text):
     else:
         raise RuntimeError(f"Unexpected wav shape {wavs.shape}")
 
-    final_wavs.append(wav)
+    # 무음 제거
+    wav_np = wav.cpu().numpy()
+    wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=10)
+    wav_tensor = torch.tensor(wav_trimmed, dtype=torch.float32)
 
-# --- 문장별 wav 이어붙이기 ---
-wav_full = torch.cat(final_wavs, dim=-1)
-t1 = log_time("문장 합치기", start_time)
+    if wav_tensor.ndim == 1:
+        wav_tensor = wav_tensor.unsqueeze(0)  # [1, T]
 
-# --- 무음 제거 ---
-wav_np = wav_full.cpu().numpy()
-wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=30)
-wav_tensor = torch.tensor(wav_trimmed)
+    # --- 파일 저장 (문장별) ---
+    now = datetime.datetime.now()
+    out_path = f"output_{DEFAULT_SPEAKER}_{session_id}_{total}-{idx}.wav"
+    torchaudio.save(out_path, wav_tensor.cpu(), 44100)
 
-if wav_tensor.ndim == 1:
-    wav_tensor = wav_tensor.unsqueeze(0)  # [1, T]
-    print("1D")
-elif wav_tensor.ndim == 2:
-    print("2D")  # 이미 [C, T]
-else:
-    raise RuntimeError(f"Unexpected trimmed wav shape {wav_tensor.shape}")
-t1 = log_time("무음 제거", t1)
+    print(f"저장 완료: {out_path} (shape={wav_tensor.shape})")
+    results.append(out_path)
 
-# --- 저장 ---
-now = datetime.datetime.now()
-out_path = f"output_{now.strftime('%m%d_%H%M')}.wav"
-torchaudio.save(out_path, wav_tensor.cpu(), 44100)
-t1 = log_time("파일 저장", t1)
+t1 = log_time("문장별 파일 저장", start_time)
 
 # --- 총 소요시간 ---
 end_time = time.time()
-print("final wav.shape =", wav_tensor.shape)
-print(f"총 소요시간: {(end_time - start_time):.2f} 초")
-print(f"저장된 파일: {out_path}")
+print("총 문장 수:", total)
+print("총 소요시간: %.2f 초" % (end_time - start_time))
+print("저장된 파일 목록:", results)

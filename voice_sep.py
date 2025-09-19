@@ -5,6 +5,9 @@ import os
 from dotenv import load_dotenv
 import torch
 
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 # .env 파일에서 환경 변수 로드
 load_dotenv()
 HF_TOKEN = os.environ.get("HF_TOKEN")
@@ -31,9 +34,9 @@ except Exception as e:
     print("Hugging Face에서 'pyannote/speaker-diarization' 및 'pyannote/segmentation' 모델의 약관에 동의했는지 확인하세요.")
     exit()
 
-name = "hanhyaejin"
+name = "joowoojae_real_wonbon"
 # 원본 오디오 파일 경로
-input_file = f"sample_file/{name}1.mp3"
+input_file = f"sample_file/{name}.mp3"
 
 # MP3 파일을 WAV로 변환 (pyannote는 WAV를 권장)
 print("🔊 MP3 파일을 WAV로 변환 중...")
@@ -46,7 +49,7 @@ print("🎙️ 화자 분할(Diarization) 시작...")
 diarization = pipeline(wav_file)
 
 # 원하는 화자 ID를 설정하세요 (예: SPEAKER_00, SPEAKER_01 등)
-target_speaker_id = "SPEAKER_00"
+target_speaker_id = "SPEAKER_01"
 
 # 특정 화자의 음성만 담을 빈 AudioSegment 생성
 target_speaker_audio = AudioSegment.empty()

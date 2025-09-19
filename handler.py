@@ -104,7 +104,7 @@ def handler(job):
 
         # --- 무음 제거 ---
         wav_np = wav_full.cpu().numpy()
-        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=30)    # 데시벨 수치, 20에서 더 올리지 말 것
+        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=35)    # 데시벨 수치, 20에서 더 올리지 말 것
         wav_tensor = torch.tensor(wav_trimmed)
 
         # torchaudio.save 용 shape 보정

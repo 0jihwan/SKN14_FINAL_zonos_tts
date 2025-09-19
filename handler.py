@@ -34,9 +34,17 @@ DEFAULT_PATH = f"persona_list/{DEFAULT_SPEAKER}.pt"
 default_emb = torch.load(DEFAULT_PATH).to(DEFAULT_DEVICE)
 
 # --- 문장 단위 split 함수 ---
-def split_sentences(text: str):
-    sentences = re.split(r'(?<=[.?!?,])', text)
-    return [s.strip() for s in sentences if s.strip()]
+def split_sentences(text: str, max_len=80):
+    # .?! 로만 자름 (, 제거)
+    sentences = re.split(r'(?<=[.?!])', text)
+    results = []
+    for s in sentences:
+        if len(s) > max_len:  # 너무 긴 경우 comma 기준 분리
+            subs = re.split(r'(?<=,)', s)
+            results.extend([sub.strip() for sub in subs if sub.strip()])
+        else:
+            results.append(s.strip())
+    return [s for s in results if s]
 
 
 def handler(job):
@@ -96,7 +104,7 @@ def handler(job):
 
         # --- 무음 제거 ---
         wav_np = wav_full.cpu().numpy()
-        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=10)    # 데시벨 수치, 20에서 더 올리지 말 것
+        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=30)    # 데시벨 수치, 20에서 더 올리지 말 것
         wav_tensor = torch.tensor(wav_trimmed)
 
         # torchaudio.save 용 shape 보정

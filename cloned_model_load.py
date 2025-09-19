@@ -20,9 +20,17 @@ def log_time(msg, start):
     return now
 
 # --- 문장 단위 split 함수 ---
-def split_sentences(text: str):
-    sentences = re.split(r'(?<=[.?!?,])', text)
-    return [s.strip() for s in sentences if s.strip()]
+def split_sentences(text: str, max_len=80):
+    # .?! 로만 자름 (, 제거)
+    sentences = re.split(r'(?<=[.?!])', text)
+    results = []
+    for s in sentences:
+        if len(s) > max_len:  # 너무 긴 경우 comma 기준 분리
+            subs = re.split(r'(?<=,)', s)
+            results.extend([sub.strip() for sub in subs if sub.strip()])
+        else:
+            results.append(s.strip())
+    return [s for s in results if s]
 
 # --- 모델 로드 ---
 print(">>> Loading Zonos Transformer model from local...")
@@ -35,14 +43,14 @@ model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DE
 print(">>> Model loaded on", model.device)
 
 # --- 임베딩 불러오기 ---
-DEFAULT_SPEAKER = "hanhyaejin"
+DEFAULT_SPEAKER = "joowoojae"
 t1 = time.time()
 speaker_emb = torch.load(f"persona_list/{DEFAULT_SPEAKER}.pt").to(DEFAULT_DEVICE)
 t1 = log_time("임베딩 불러오기", t1)
 
 # --- 테스트 텍스트 ---
 # text = "안녕하십니까? 오늘의 주우재의 주우재입니다. 오늘도 주우재의 살까요 말까요?"
-text = "안녕하세요 한혜진이에요. 제가 ESG 패션에 대해 알려드릴게요."
+text = "재활용 폴리에스터는 플라스틱 병과 폐기물을 재활용해 환경오염과 에너지 소모를 줄이며, 친환경적이고 지속 가능하다"
 
 start_time = time.time()
 final_wavs = []

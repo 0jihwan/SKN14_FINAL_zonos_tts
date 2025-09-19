@@ -20,8 +20,12 @@ print(">>> CWD:", os.getcwd())
 # model = Zonos.from_pretrained("Zyphra/Zonos-v0.1-transformer", device=DEFAULT_DEVICE)
 
 # --- 모델 로딩 (로컬 파일 시스템에서 불러오기) ---
-model_path = "/app/models/Zonos-v0.1-transformer"
-model = Zonos.from_pretrained(model_path, device=DEFAULT_DEVICE)
+# model_path = "/app/models/Zonos-v0.1-transformer"
+model = Zonos.from_local(
+    config_path="/app/models/Zonos-v0.1-transformer/config.json",
+    model_path="/app/models/Zonos-v0.1-transformer/model.safetensors",
+    device=DEFAULT_DEVICE
+)
 
 
 s3 = boto3.client("s3", region_name=REGION)

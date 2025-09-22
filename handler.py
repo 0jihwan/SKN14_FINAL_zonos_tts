@@ -1,5 +1,5 @@
 import os, time, datetime, boto3, torch, torchaudio
-import librosa, re
+import librosa, re, unicodedata
 from runpod import serverless
 from zonos.utils import DEFAULT_DEVICE
 from zonos.conditioning import make_cond_dict
@@ -7,6 +7,7 @@ from zonos.model import Zonos
 
 # espeak 변수
 os.environ["PHONEMIZER_ESPEAK_PATH"] = "/usr/bin/espeak-ng"
+os.environ["ESPEAK_DATA_PATH"] = "/usr/share/espeak-ng-data"
 
 # AWS 환경 변수
 S3_BUCKET = os.getenv("AWS_S3_BUCKET")
@@ -33,25 +34,62 @@ DEFAULT_SPEAKER = SPEAKER_MAP[DEFAULT_SPEAKER_ID]
 DEFAULT_PATH = f"persona_list/{DEFAULT_SPEAKER}.pt"
 default_emb = torch.load(DEFAULT_PATH).to(DEFAULT_DEVICE)
 
+# --- 텍스트 전처리 함수 ---
+def clean_ko_text(s: str) -> str:
+    # 제로폭 문자 제거 + NFKC 정규화 + 공백 정리
+    s = re.sub(r'[\u200B-\u200D\uFEFF\u2060]', '', s)
+    s = unicodedata.normalize('NFKC', s)
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+def ensure_terminal_punct(s: str) -> str:
+    # 문장 끝 종결부호 보장 (없으면 마침표 추가)
+    return s if re.search(r'[.?!…]\s*$', s) else s + '.'
+
 # --- 문장 단위 split 함수 ---
 def split_sentences(text: str, max_len=80):
     # .?! 로만 자름 (, 제거)
     sentences = re.split(r'(?<=[.?!])', text)
     results = []
     for s in sentences:
+        s = s.strip()
+        if not s:
+            continue
         if len(s) > max_len:  # 너무 긴 경우 comma 기준 분리
             subs = re.split(r'(?<=,)', s)
-            results.extend([sub.strip() for sub in subs if sub.strip()])
+            results.extend([ensure_terminal_punct(sub.strip()) for sub in subs if sub.strip()])
         else:
-            results.append(s.strip())
-    return [s for s in results if s]
+            results.append(ensure_terminal_punct(s))
+    return results
+
+def estimate_tokens_ko(s: str) -> int:
+    # 한국어 안전 계수 (보수적): 글자당 64~80 토큰, 최소 512
+    chars_no_space = len(re.sub(r'\s+', '', s))
+    return max(1024, min(chars_no_space * 72, 16384))
+
+# --- wav shape 보정 ---
+def to_CT(wav: torch.Tensor) -> torch.Tensor:
+    # librosa에서 넘어오면 1D(T,)일 수 있음 → [1, T]로 통일
+    if wav.ndim == 1:
+        wav = wav.unsqueeze(0)
+    elif wav.ndim != 2:
+        raise RuntimeError(f"Unexpected wav shape {wav.shape} (want [C, T])")
+    return wav
+
+# --- 말미 페이드아웃 ---
+def apply_fade_out(wav: torch.Tensor, sr: int, fade_ms: float = 120.0) -> torch.Tensor:
+    assert wav.ndim == 2
+    T = wav.shape[-1]
+    n = max(1, min(int(sr * (fade_ms / 1000.0)), T - 1))
+    ramp = torch.linspace(1.0, 0.0, n, dtype=wav.dtype, device=wav.device)
+    wav[..., -n:] = wav[..., -n:] * ramp
+    return wav
 
 
 def handler(job):
     try:
         start_time = time.time()
 
-        
         text = job["input"].get("text", "안녕하세요")
         persona_input = job["input"].get("persona", DEFAULT_SPEAKER)
 
@@ -66,9 +104,10 @@ def handler(job):
         speaker_path = f"persona_list/{persona_name}.pt"
         emb = torch.load(speaker_path).to(DEFAULT_DEVICE) if os.path.exists(speaker_path) else default_emb
 
-
-
         final_wavs = []
+
+        # 텍스트 정리
+        text = clean_ko_text(text)
 
         # 문장 단위로 나눠서 처리
         for sent in split_sentences(text):
@@ -79,14 +118,19 @@ def handler(job):
                 cond["espeak"] = ([t[0]], [l[0]])
 
             # prefix 준비
-            with torch.inference_mode(), torch.cuda.amp.autocast(dtype=torch.bfloat16):
+            with torch.inference_mode():
                 prefix = model.prepare_conditioning(cond)
 
-                # --- 문장 길이에 따른 max_new_tokens 계산 ---
-                max_tokens = max(64, len(sent) * 24)
+                # --- 문장 길이에 따른 max_new_tokens 계산 (보수적)
+                max_tokens = estimate_tokens_ko(sent)
 
                 # 코드 생성 & 오디오 복원
-                codes = model.generate(prefix, disable_torch_compile=True, progress_bar=False, max_new_tokens=max_tokens)
+                codes = model.generate(
+                    prefix,
+                    disable_torch_compile=True,
+                    progress_bar=False,
+                    max_new_tokens=max_tokens
+                )
                 wavs = model.autoencoder.decode(codes)
 
             # wav 정리
@@ -102,31 +146,38 @@ def handler(job):
         # --- 문장별 wav 이어붙이기 ---
         wav_full = torch.cat(final_wavs, dim=-1)
 
-        # --- 무음 제거 ---
-        wav_np = wav_full.cpu().numpy()
-        wav_trimmed, _ = librosa.effects.trim(wav_np, top_db=35)    # 데시벨 수치, 20에서 더 올리지 말 것
-        wav_tensor = torch.tensor(wav_trimmed)
+        # --- 앞부분만 무음 제거 (뒤는 보존) ---
+        wav_np_full = wav_full.cpu().numpy()
+        _, idx = librosa.effects.trim(wav_np_full, top_db=18)  # 덜 공격적
+        start_idx = int(idx[0])                                # 앞만 잘라냄
+        head_trimmed = wav_np_full[..., start_idx:]
 
-        # torchaudio.save 용 shape 보정
-        if wav_tensor.ndim == 1:
-            wav_tensor = wav_tensor.unsqueeze(0)        # [1, T] (mono)
-        elif wav_tensor.ndim == 2:
-            pass                                        # [C, T] (stereo 등)
-        else:
-            raise ValueError(f"Unexpected wav shape after trim: {wav_tensor.shape}")
+        # --- 텐서화 + [C, T] 강제 ---
+        wav_tensor = torch.tensor(head_trimmed)
+        wav_tensor = to_CT(wav_tensor)
+
+        # --- 말미 여유 무음 패딩 (0.5초) ---
+        sr = 44100
+        pad_end_ms = 500
+        pad = int(sr * (pad_end_ms / 1000.0))
+        sil = torch.zeros((wav_tensor.shape[0], pad), dtype=wav_tensor.dtype, device=wav_tensor.device)
+        wav_tensor = torch.cat([wav_tensor, sil], dim=-1)
+
+        # --- 말미 페이드아웃 ---
+        wav_tensor = apply_fade_out(wav_tensor, sr=sr, fade_ms=120.0)
 
         # 파일 wav로 저장
         now = datetime.datetime.now()
         filename = f"tts_{persona_name}_{now.strftime('%m%d_%H%M%S')}.wav"
         local_path = f"/tmp/{filename}"
-        torchaudio.save(local_path, wav_tensor.cpu(), 44100, format="wav")
+        torchaudio.save(local_path, wav_tensor.cpu(), sr, format="wav")
 
         # S3 업로드
         s3.upload_file(local_path, S3_BUCKET, f"{PREFIX}/{filename}")
         url = s3.generate_presigned_url(
             ClientMethod="get_object",
             Params={"Bucket": S3_BUCKET, "Key": f"{PREFIX}/{filename}"},
-            ExpiresIn=3600  # url 유효기간
+            ExpiresIn=360000  # url 유효기간
         )
 
         end_time = time.time()

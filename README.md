@@ -46,4 +46,17 @@ git clone https://github.com/Zyphra/Zonos.git
 
 ---
 초기 모델 tts 생성 시 약 40초 소요(3문장)
-최적화에 사용한 방법
+
+
+
+## Zonos 모델 runpod에서 사용법
+
+1. runpod 로그인
+2. 좌측 사이드바에서 Pods 선택
+3. GPU 선택 (ex. RTX5090으로 진행)
+4. start jupyter notebook 체크 후 Deploy on demand
+5. jupyter notebook 열어서 접속 (접속되는데 시간이 조금 걸립니다)
+6. 준비된 ipynb파일 업로드. 패키지 모두 설치
+- Zonos 안에 있는 파일들 모두 Workspace로 옮기기(상위 폴더로 옮기기)
+7. (선택) persona_list나 sample_file 같은 디렉토리를 만들거나, 코드를 수정
+- 임베딩 파일도 업로드하거나 직접 돌려야합니다.

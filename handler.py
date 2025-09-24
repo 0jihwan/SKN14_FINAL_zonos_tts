@@ -24,8 +24,8 @@ s3 = boto3.client("s3", region_name=REGION)
 SPEAKER_MAP = {
     "1": "HongJinkyeong",
     "2": "joowoojae",
-    "3": "kimhoyeong",
-    "4": "hanhyaejin"
+    "3": "hanhyaejin",
+    "4": "kimhoyeong"
 }
 
 # 기본 persona

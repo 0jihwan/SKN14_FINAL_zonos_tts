@@ -65,7 +65,18 @@ git clone https://github.com/Zyphra/Zonos.git
 
 ## GPU 선정
 
-<img src="https://drive.google.com/file/d/1TZDYW6G5ipi7H7U80nH50SxQoJEcgoTg/view?usp=sharing">
-<img src="https://drive.google.com/file/d/120flL29tnsgaRc7Wd_iFHe1Fq1Bjbp9I/view?usp=sharing">
-<img src="https://drive.google.com/file/d/1rARAdEPiwdjzbMJ_-1EGpFvci0PF3dHy/view?usp=sharing">
-<img src="https://drive.google.com/file/d/1POegAnH-AqIZZ11ghkmigpj4S7jrC6rZ/view?usp=sharing">
+<img src="https://github.com/0jihwan/SKN14_FINAL_zonos_tts/blob/main/img/runpod_img_1.png?raw=true">
+<img src="https://github.com/0jihwan/SKN14_FINAL_zonos_tts/blob/main/img/runpod_img_2.png?raw=true">
+<img src="https://github.com/0jihwan/SKN14_FINAL_zonos_tts/blob/main/img/runpod_img_3.png?raw=true">
+<img src="https://github.com/0jihwan/SKN14_FINAL_zonos_tts/blob/main/img/runpod_img_4.png?raw=true">
+
+
+<br>
+
+<br>
+
+### 결론
+**비교군 중,**
+- 비용이 압도적으로 저렴하고
+- 속도 면에서 평균적인 성능을 보이는
+- RTX A6000, A40 GPU를 채택(VRAM 48GB군)

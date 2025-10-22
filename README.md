@@ -60,3 +60,12 @@ git clone https://github.com/Zyphra/Zonos.git
 - Zonos 안에 있는 파일들 모두 Workspace로 옮기기(상위 폴더로 옮기기)
 7. (선택) persona_list나 sample_file 같은 디렉토리를 만들거나, 코드를 수정
 - 임베딩 파일도 업로드하거나 직접 돌려야합니다.
+
+
+
+## GPU 선정
+
+<img src="https://drive.google.com/file/d/1TZDYW6G5ipi7H7U80nH50SxQoJEcgoTg/view?usp=sharing">
+<img src="https://drive.google.com/file/d/120flL29tnsgaRc7Wd_iFHe1Fq1Bjbp9I/view?usp=sharing">
+<img src="https://drive.google.com/file/d/1rARAdEPiwdjzbMJ_-1EGpFvci0PF3dHy/view?usp=sharing">
+<img src="https://drive.google.com/file/d/1POegAnH-AqIZZ11ghkmigpj4S7jrC6rZ/view?usp=sharing">
